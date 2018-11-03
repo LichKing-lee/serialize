@@ -4,6 +4,7 @@ import java.lang.reflect.Field;
 import java.util.Objects;
 
 import com.yong.serialize.annotation.Serialize;
+import com.yong.serialize.annotation.Transient;
 
 public class SerializeProcessor {
 
@@ -16,6 +17,11 @@ public class SerializeProcessor {
 
 		Field[] fields = clazz.getDeclaredFields();
 		for(Field field : fields) {
+			Transient t = field.getAnnotation(Transient.class);
+			if(t != null) {
+				continue;
+			}
+
 			builder.append("\"");
 			builder.append(field.getName());
 			builder.append("\"");
