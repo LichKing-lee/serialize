@@ -34,4 +34,11 @@ public class SerializeProcessorTest {
 
 		assertThat(json, is("{\"age\":\"30\",\"name\":\"changyong\"}"));
 	}
+
+	@Test
+	public void getter가_정의되어있지않으면_직렬화되지않음() throws Exception {
+		String json = processor.process(new Person(30, "changyong", "사당동"));
+
+		assertThat(json, is("{\"age\":\"30\",\"name\":\"changyong\"}"));
+	}
 }
