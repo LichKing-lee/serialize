@@ -1,11 +1,13 @@
 package com.yong.serialize.annotation.process;
 
+import static java.util.stream.Collectors.*;
+
 import java.beans.BeanInfo;
-import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Objects;
 
 import com.yong.serialize.annotation.Serialize;
@@ -17,34 +19,38 @@ public class SerializeProcessor {
 		Class<?> aClass = target.getClass();
 		Objects.requireNonNull(aClass.getAnnotation(Serialize.class));
 
-		StringBuilder builder = new StringBuilder("{");
-
 		BeanInfo beanInfo = Introspector.getBeanInfo(aClass);
 		PropertyDescriptor[] descriptors = beanInfo.getPropertyDescriptors();
 
-		for(PropertyDescriptor descriptor : descriptors) {
-			if(descriptor.getName().equals("class")) {
-				continue;
-			}
+		return Arrays.stream(descriptors)
+			.filter(desc -> !desc.getName().equals("class"))
+			.filter(desc -> !hasTransient(aClass, desc))
+			.map(desc -> fieldToJsonAsString(desc, target))
+			.collect(joining(",", "{", "}"));
+	}
 
-			Field field = aClass.getDeclaredField(descriptor.getName());
-			Transient t = field.getAnnotation(Transient.class);
-			if(t != null) {
-				continue;
-			}
-
-			builder.append("\"");
-			builder.append(descriptor.getName());
-			builder.append("\"");
-			builder.append(":");
-			builder.append("\"");
-			builder.append(descriptor.getReadMethod().invoke(target));
-			builder.append("\",");
+	private Field extractField(Class<?> aClass, PropertyDescriptor desc) {
+		try {
+			return aClass.getDeclaredField(desc.getName());
+		} catch (NoSuchFieldException e) {
+			throw new RuntimeException(e);
 		}
+	}
 
-		builder.replace(builder.length()-1, builder.length(), "");
-		builder.append("}");
+	private Object invokeMethod(Method method, Object target) {
+		try {
+			return method.invoke(target);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
 
-		return builder.toString();
+	private boolean hasTransient(Class<?> aClass, PropertyDescriptor desc) {
+		Field field = extractField(aClass, desc);
+		return field.getAnnotation(Transient.class) != null;
+	}
+
+	private String fieldToJsonAsString(PropertyDescriptor desc, Object target) {
+		return "\"" + desc.getName() + "\":\"" + invokeMethod(desc.getReadMethod(), target) + "\"";
 	}
 }
